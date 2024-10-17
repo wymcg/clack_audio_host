@@ -1,10 +1,14 @@
 mod args;
 
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use clack_host::events::event_types::NoteOnEvent;
+use clack_host::events::Match::All;
 use crate::args::ClackAudioHostArgs;
 
 use clap::Parser;
 use clack_host::prelude::*;
+use jack::{AudioOut, AudioIn, Client, Control, Port, ProcessScope, contrib::ClosureProcessHandler};
 use log::{debug, error, info, warn};
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
@@ -12,9 +16,8 @@ const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
 const HOST_URL: &str = "https://github.com/wymcg/clack_audio_host";
 const HOST_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-const PLUGIN_CONFIG_SAMPLE_RATE: f64 = 48_000.0;
-const PLUGIN_CONFIG_MIN_FRAMES: u32 = 256;
-const PLUGIN_CONFIG_MAX_FRAMES: u32 = 1024;
+const PLUGIN_CONFIG_MIN_FRAMES: u32 = 1;
+const PLUGIN_CONFIG_MAX_FRAMES: u32 = 4096;
 
 struct ClackAudioHostShared;
 
@@ -47,6 +50,12 @@ fn main() {
 
     // Parse command line args
     let args = ClackAudioHostArgs::parse();
+
+    // Set up the JACK client
+    let (client, _status) = Client::new("clack_audio_host", jack::ClientOptions::NO_START_SERVER).expect("Unable to create JACK client!");
+    let mut port_out_l = client.register_port("out_l", AudioOut::default()).expect("Unable to create left output port!");
+    let mut port_out_r = client.register_port("out_r", AudioOut::default()).expect("Unable to create right output port!");
+    client.set_buffer_size(PLUGIN_CONFIG_MAX_FRAMES).expect("Unable to set client buffer size!");
 
     // Create a host information object
     let host_info = HostInfo::new(HOST_NAME, HOST_VENDOR, HOST_URL, HOST_VERSION).expect("Unable to create host information!");
@@ -96,7 +105,7 @@ fn main() {
     // Create the audio processor
     let audio_processor = match plugin_instance.activate(
         |_, _| (),
-        PluginAudioConfiguration {sample_rate: PLUGIN_CONFIG_SAMPLE_RATE, min_frames_count: PLUGIN_CONFIG_MIN_FRAMES, max_frames_count: PLUGIN_CONFIG_MAX_FRAMES }
+        PluginAudioConfiguration {sample_rate: client.sample_rate() as f64, min_frames_count: PLUGIN_CONFIG_MIN_FRAMES, max_frames_count: PLUGIN_CONFIG_MAX_FRAMES }
     ) {
         Ok(processor) => processor,
         Err(e) => {
@@ -107,7 +116,7 @@ fn main() {
     };
 
     // Create event I/O buffers
-    let note_event = NoteOnEvent::new(0, Pckn::new(0u16, 0u16, 12u16, 60u32), 4.2);
+    let note_event = NoteOnEvent::new(0, Pckn::new(0u16, 0u16, 60u16, 0u32), 4.2); // Middle C!
     let input_events_buffer = [note_event];
     let mut output_events_buffer = EventBuffer::new();
 
@@ -117,48 +126,46 @@ fn main() {
     let mut input_ports = AudioPorts::with_capacity(2, 1);
     let mut output_ports = AudioPorts::with_capacity(2, 1);
 
-    let audio_processor = std::thread::scope(|s| s.spawn(|| {
-        // Start audio processing thread
-        let mut audio_processor = audio_processor.start_processing().expect("Unable to start processing audio.");
+    let mut audio_processor = audio_processor.start_processing().expect("Unable to start processing audio.");
 
-        let input_events = InputEvents::from_buffer(&input_events_buffer);
-        let mut output_events = OutputEvents::from_buffer(&mut output_events_buffer);
+    let process_handler = ClosureProcessHandler::new(
+        move |_client, process_scope| -> Control {
+            let input_events = InputEvents::from_buffer(&input_events_buffer);
+            let mut output_events = OutputEvents::from_buffer(&mut output_events_buffer);
 
-        let input_audio = input_ports.with_input_buffers([AudioPortBuffer {
-            latency: 0,
-            channels: AudioPortBufferType::f32_input_only(
-                input_audio_buffers.iter_mut().map(|b| InputChannel::constant(b))
-            )
-        }]);
-        let mut output_audio = output_ports.with_output_buffers([AudioPortBuffer {
-            latency: 0,
-            channels: AudioPortBufferType::f32_output_only(
-                output_audio_buffers.iter_mut().map(|b| b.as_mut_slice())
-            )
-        }]);
+            let input_audio = input_ports.with_input_buffers([AudioPortBuffer {
+                latency: 0,
+                channels: AudioPortBufferType::f32_input_only(
+                    input_audio_buffers.iter_mut().map(|b| InputChannel::constant(b))
+                )
+            }]);
+            let mut output_audio = output_ports.with_output_buffers([AudioPortBuffer {
+                latency: 0,
+                channels: AudioPortBufferType::f32_output_only(
+                    output_audio_buffers.iter_mut().map(|b| b.as_mut_slice())
+                )
+            }]);
 
-        let status = match audio_processor.process(
-            &input_audio,
-            &mut output_audio,
-            &input_events,
-            &mut output_events,
-            None,
-            None
-        ) {
-            Ok(status) => status,
-            Err(e) => {
-                error!("Error processing audio.");
+            if let Err(e) = audio_processor.process(&input_audio, &mut output_audio, &input_events, &mut output_events, None, None) {
+                error!("Unable to process plugin audio.");
                 debug!("Error: {e}");
-                return audio_processor.stop_processing();
+                return Control::Quit;
             }
-        };
 
-        audio_processor.stop_processing()
-    }).join().expect("Unable to join thread!"));
+            // Write output buffers to the JACK output ports
+            port_out_l.as_mut_slice(process_scope).copy_from_slice(&output_audio_buffers[0]);
+            port_out_r.as_mut_slice(process_scope).copy_from_slice(&output_audio_buffers[1]);
 
-    debug!("Contents of output audio buffers: {output_audio_buffers:?}");
+            Control::Continue
+        }
+    );
 
-    plugin_instance.deactivate(audio_processor);
+    let _active_client = Rc::new(client.activate_async((), process_handler).expect("Unable to activate client"));
+
+    // Keep the main thread alive
+    loop {
+        std::thread::park();
+    }
 
     info!("Done.");
 }
