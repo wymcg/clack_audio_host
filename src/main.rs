@@ -1,4 +1,5 @@
 mod args;
+mod cmd;
 
 use crate::args::ClackAudioHostArgs;
 use clack_host::events::event_types::NoteOnEvent;
@@ -12,6 +13,7 @@ use jack::{
     contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, Port, ProcessScope,
 };
 use linefeed::{Interface, ReadResult};
+use crate::cmd::ClackAudioHostCommand;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -202,6 +204,13 @@ fn main() {
 
     // Run the command REPL
     while let ReadResult::Input(line) = interface.read_line().expect("Unable to read line") {
-        println!("{line}");
+        match ClackAudioHostCommand::from(line.as_str()) {
+            ClackAudioHostCommand::Help => { cmd::print_help(); }
+            ClackAudioHostCommand::Note(key) => eprintln!("Not yet implemented!"),
+            ClackAudioHostCommand::StopNote => eprintln!("Not yet implemented!"),
+            ClackAudioHostCommand::Invalid => eprintln!("Invalid command. See 'help' for usage information."),
+            ClackAudioHostCommand::Quit => return
+        };
+        println!();
     }
 }
