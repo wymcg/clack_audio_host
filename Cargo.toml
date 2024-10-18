@@ -10,6 +10,4 @@ authors = ["Will McGloughlin"]
 clap = {version = "4.5.20", features = ["derive"]}
 clack-host = {git = "https://github.com/prokopyl/clack.git"}
 jack = "0.13.0"
-log = "0.4.22"
-env_logger = "0.11.5"
-ctrlc = "3.4.5"
+linefeed = "0.6.0"

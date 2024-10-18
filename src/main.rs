@@ -11,7 +11,7 @@ use clap::Parser;
 use jack::{
     contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, Port, ProcessScope,
 };
-use log::{debug, error, info, warn};
+use linefeed::{Interface, ReadResult};
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -46,9 +46,7 @@ impl HostHandlers for ClackAudioHost {
 }
 
 fn main() {
-    env_logger::init();
-
-    info!("Starting {HOST_NAME} v{HOST_VERSION}");
+    println!("{HOST_NAME} v{HOST_VERSION}");
 
     // Parse command line args
     let args = ClackAudioHostArgs::parse();
@@ -74,25 +72,27 @@ fn main() {
     let bundle = match unsafe { PluginBundle::load(&args.path) } {
         Ok(bundle) => bundle,
         Err(e) => {
-            error!("Unable to load plugin bundle.");
-            debug!("Error: {e}");
+            eprintln!("Unable to load plugin bundle.");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
             return;
         }
     };
     let plugin_factory = match bundle.get_plugin_factory() {
         Some(factory) => factory,
         None => {
-            error!("Plugin bundle does not contain a plugin factory.");
+            eprintln!("Plugin bundle does not contain a plugin factory.");
             return;
         }
     };
 
     // Pull the first plugin descriptor
     if plugin_factory.plugin_count() < 1 {
-        error!("Plugin bundle contains no plugins.");
+        eprintln!("Plugin bundle contains no plugins.");
         return;
     } else if plugin_factory.plugin_count() > 1 {
-        warn!("Plugin bundle contains more than one plugin. Only the first plugin will be loaded.");
+        println!("Plugin bundle contains more than one plugin. Only the first plugin will be loaded.");
     }
     let plugin_descriptor = plugin_factory
         .plugin_descriptor(0)
@@ -108,8 +108,10 @@ fn main() {
     ) {
         Ok(instance) => instance,
         Err(e) => {
-            error!("Unable to create an instance of the plugin.");
-            debug!("Error: {e}");
+            eprintln!("Unable to create an instance of the plugin.");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
             return;
         }
     };
@@ -125,8 +127,10 @@ fn main() {
     ) {
         Ok(processor) => processor,
         Err(e) => {
-            error!("Unable to create an audio processor.");
-            debug!("Error: {e}");
+            eprintln!("Unable to create an audio processor.");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
             return;
         }
     };
@@ -173,8 +177,7 @@ fn main() {
             None,
             None,
         ) {
-            error!("Unable to process plugin audio.");
-            debug!("Error: {e}");
+            eprintln!("Unable to process plugin audio.");
             return Control::Quit;
         }
 
@@ -193,10 +196,12 @@ fn main() {
         .activate_async((), process_handler)
         .expect("Unable to activate client");
 
-    // Keep the main thread alive
-    loop {
-        std::thread::park();
-    }
+    // Set up the REPL interface
+    let interface = Interface::new(HOST_NAME).expect("Unable to create interface!");
+    interface.set_prompt(">> ").expect("Unable to set interface prompt!");
 
-    info!("Done.");
+    // Run the command REPL
+    while let ReadResult::Input(line) = interface.read_line().expect("Unable to read line") {
+        println!("{line}");
+    }
 }
