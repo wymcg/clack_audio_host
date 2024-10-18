@@ -1,21 +1,16 @@
 mod args;
 mod cmd;
 
-use std::ops::Deref;
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
 
-use clack_host::prelude::*;
-use clack_host::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
-use clap::Parser;
-use jack::{
-    contrib::ClosureProcessHandler, AudioOut, Client, Control
-};
-use linefeed::{Interface, ReadResult};
-use std::sync::{mpsc, Arc, Mutex};
-use std::sync::mpsc::{Sender, Receiver};
-use clack_host::events::io::InputEventBuffer;
+use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent};
 use clack_host::events::Match::All;
+use clack_host::prelude::*;
+use clap::Parser;
+use jack::{contrib::ClosureProcessHandler, AudioOut, Client, Control};
+use linefeed::{Interface, ReadResult};
+use std::sync::{Arc, Mutex};
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -98,7 +93,9 @@ fn main() {
         eprintln!("Plugin bundle contains no plugins.");
         return;
     } else if plugin_factory.plugin_count() > 1 {
-        println!("Plugin bundle contains more than one plugin. Only the first plugin will be loaded.");
+        println!(
+            "Plugin bundle contains more than one plugin. Only the first plugin will be loaded."
+        );
     }
     let plugin_descriptor = plugin_factory
         .plugin_descriptor(0)
@@ -142,7 +139,7 @@ fn main() {
     };
 
     // Create event I/O buffers
-    let mut input_events_buffer = Arc::new(Mutex::new(EventBuffer::new()));
+    let input_events_buffer = Arc::new(Mutex::new(EventBuffer::new()));
     let mut output_events_buffer = EventBuffer::new();
 
     // Create audio I/O buffers/ports
@@ -178,7 +175,7 @@ fn main() {
             ),
         }]);
 
-        if let Err(e) = audio_processor.process(
+        if let Err(_e) = audio_processor.process(
             &input_audio,
             &mut output_audio,
             &(thread_input_events_buffer.lock().unwrap().as_input()),
@@ -211,16 +208,26 @@ fn main() {
 
     // Set up the REPL interface
     let interface = Interface::new(HOST_NAME).expect("Unable to create interface!");
-    interface.set_prompt(">> ").expect("Unable to set interface prompt!");
+    interface
+        .set_prompt(">> ")
+        .expect("Unable to set interface prompt!");
 
     // Run the command REPL
     while let ReadResult::Input(line) = interface.read_line().expect("Unable to read line") {
         match ClackAudioHostCommand::from(line.as_str()) {
-            ClackAudioHostCommand::Help => { cmd::print_help(); }
-            ClackAudioHostCommand::StartNote(key) =>  input_events_buffer.lock().unwrap().push(&NoteOnEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY)),
-            ClackAudioHostCommand::StopNote(key) => input_events_buffer.lock().unwrap().push(&NoteOffEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY)),
-            ClackAudioHostCommand::Invalid => eprintln!("Invalid command. See 'help' for usage information."),
-            ClackAudioHostCommand::Quit => break
+            ClackAudioHostCommand::Help => {
+                cmd::print_help();
+            }
+            ClackAudioHostCommand::StartNote(key) => input_events_buffer.lock().unwrap().push(
+                &NoteOnEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY),
+            ),
+            ClackAudioHostCommand::StopNote(key) => input_events_buffer.lock().unwrap().push(
+                &NoteOffEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY),
+            ),
+            ClackAudioHostCommand::Invalid => {
+                eprintln!("Invalid command. See 'help' for usage information.")
+            }
+            ClackAudioHostCommand::Quit => break,
         };
         println!();
     }

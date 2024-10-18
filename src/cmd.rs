@@ -3,7 +3,7 @@ pub enum ClackAudioHostCommand {
     StartNote(u16),
     StopNote(u16),
     Quit,
-    Invalid
+    Invalid,
 }
 
 impl ClackAudioHostCommand {
@@ -13,16 +13,14 @@ impl ClackAudioHostCommand {
             "note" | "n" => Some(Self::StartNote(tokens.get(1)?.parse::<u16>().ok()?)),
             "stop" | "s" => Some(Self::StopNote(tokens.get(1)?.parse::<u16>().ok()?)),
             "quit" | "q" => Some(Self::Quit),
-            _ => None
+            _ => None,
         }
     }
 }
 
 impl From<&str> for ClackAudioHostCommand {
     fn from(value: &str) -> Self {
-        Self::try_parse_from_tokens(
-            value.split_whitespace().collect()
-        ).unwrap_or(Self::Invalid)
+        Self::try_parse_from_tokens(value.split_whitespace().collect()).unwrap_or(Self::Invalid)
     }
 }
 
