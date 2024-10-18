@@ -1,24 +1,28 @@
 mod args;
 mod cmd;
 
+use std::ops::Deref;
 use crate::args::ClackAudioHostArgs;
-use clack_host::events::event_types::NoteOnEvent;
-use clack_host::events::Match::All;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use crate::cmd::ClackAudioHostCommand;
 
 use clack_host::prelude::*;
+use clack_host::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clap::Parser;
 use jack::{
-    contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, Port, ProcessScope,
+    contrib::ClosureProcessHandler, AudioOut, Client, Control
 };
 use linefeed::{Interface, ReadResult};
-use crate::cmd::ClackAudioHostCommand;
+use std::sync::{mpsc, Arc, Mutex};
+use std::sync::mpsc::{Sender, Receiver};
+use clack_host::events::io::InputEventBuffer;
+use clack_host::events::Match::All;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
 const HOST_URL: &str = "https://github.com/wymcg/clack_audio_host";
 const HOST_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+const NOTE_VELOCITY: f64 = 100.0;
 
 const PLUGIN_CONFIG_MIN_FRAMES: u32 = 1;
 const PLUGIN_CONFIG_MAX_FRAMES: u32 = 4096;
@@ -138,8 +142,7 @@ fn main() {
     };
 
     // Create event I/O buffers
-    let note_event = NoteOnEvent::new(0, Pckn::new(0u16, 0u16, 60u16, 0u32), 4.2); // Middle C!
-    let input_events_buffer = [note_event];
+    let mut input_events_buffer = Arc::new(Mutex::new(EventBuffer::new()));
     let mut output_events_buffer = EventBuffer::new();
 
     // Create audio I/O buffers/ports
@@ -148,12 +151,16 @@ fn main() {
     let mut input_ports = AudioPorts::with_capacity(2, 1);
     let mut output_ports = AudioPorts::with_capacity(2, 1);
 
+    // Create a copy of the input events buffer mutex for the JACK client process handler to use
+    let thread_input_events_buffer = input_events_buffer.clone();
+
+    // Start the audio processor
     let mut audio_processor = audio_processor
         .start_processing()
         .expect("Unable to start processing audio.");
 
+    // Create the process handler for the JACK client
     let process_handler = ClosureProcessHandler::new(move |_client, process_scope| -> Control {
-        let input_events = InputEvents::from_buffer(&input_events_buffer);
         let mut output_events = OutputEvents::from_buffer(&mut output_events_buffer);
 
         let input_audio = input_ports.with_input_buffers([AudioPortBuffer {
@@ -174,7 +181,7 @@ fn main() {
         if let Err(e) = audio_processor.process(
             &input_audio,
             &mut output_audio,
-            &input_events,
+            &(thread_input_events_buffer.lock().unwrap().as_input()),
             &mut output_events,
             None,
             None,
@@ -191,9 +198,13 @@ fn main() {
             .as_mut_slice(process_scope)
             .copy_from_slice(&output_audio_buffers[1]);
 
+        // Clear the input events buffer
+        thread_input_events_buffer.lock().unwrap().clear();
+
         Control::Continue
     });
 
+    // Start the JACK client
     let _active_client = client
         .activate_async((), process_handler)
         .expect("Unable to activate client");
@@ -206,10 +217,10 @@ fn main() {
     while let ReadResult::Input(line) = interface.read_line().expect("Unable to read line") {
         match ClackAudioHostCommand::from(line.as_str()) {
             ClackAudioHostCommand::Help => { cmd::print_help(); }
-            ClackAudioHostCommand::Note(key) => eprintln!("Not yet implemented!"),
-            ClackAudioHostCommand::StopNote => eprintln!("Not yet implemented!"),
+            ClackAudioHostCommand::StartNote(key) =>  input_events_buffer.lock().unwrap().push(&NoteOnEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY)),
+            ClackAudioHostCommand::StopNote(key) => input_events_buffer.lock().unwrap().push(&NoteOffEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY)),
             ClackAudioHostCommand::Invalid => eprintln!("Invalid command. See 'help' for usage information."),
-            ClackAudioHostCommand::Quit => return
+            ClackAudioHostCommand::Quit => break
         };
         println!();
     }
