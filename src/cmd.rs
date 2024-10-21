@@ -3,6 +3,7 @@ pub enum ClackAudioHostCommand {
     StartNote(u16),
     StopNote(u16),
     ListFeatures,
+    ListParams,
     Quit,
     Invalid,
 }
@@ -15,6 +16,7 @@ impl ClackAudioHostCommand {
             "stop" | "s" => Some(Self::StopNote(tokens.get(1)?.parse::<u16>().ok()?)),
             "quit" | "q" => Some(Self::Quit),
             "lsf" => Some(Self::ListFeatures),
+            "lsp" => Some(Self::ListParams),
             _ => None,
         }
     }
@@ -31,4 +33,5 @@ pub fn print_help() {
     println!("note|n <note> - Start playing a note");
     println!("stop|s <note> - Stop playing a note");
     println!("lsf           - List plugin features");
+    println!("lsp           - List plugin parameters");
 }

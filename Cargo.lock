@@ -101,16 +101,27 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "clack-common"
 version = "0.1.0"
-source = "git+https://github.com/prokopyl/clack.git#404adaf4ffc6cd579f11628d80baeaaace437461"
+source = "git+https://github.com/prokopyl/clack.git?rev=5deaa1b#5deaa1be9b5af7078d75cbe54abefee12ed40f63"
 dependencies = [
  "bitflags 2.6.0",
  "clap-sys",
 ]
 
 [[package]]
+name = "clack-extensions"
+version = "0.1.0"
+source = "git+https://github.com/prokopyl/clack.git?rev=5deaa1b#5deaa1be9b5af7078d75cbe54abefee12ed40f63"
+dependencies = [
+ "bitflags 2.6.0",
+ "clack-common",
+ "clack-host",
+ "clap-sys",
+]
+
+[[package]]
 name = "clack-host"
 version = "0.1.0"
-source = "git+https://github.com/prokopyl/clack.git#404adaf4ffc6cd579f11628d80baeaaace437461"
+source = "git+https://github.com/prokopyl/clack.git?rev=5deaa1b#5deaa1be9b5af7078d75cbe54abefee12ed40f63"
 dependencies = [
  "clack-common",
  "clap-sys",
@@ -121,6 +132,7 @@ dependencies = [
 name = "clack_audio_host"
 version = "0.1.0"
 dependencies = [
+ "clack-extensions",
  "clack-host",
  "clap",
  "jack",

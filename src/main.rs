@@ -7,6 +7,7 @@ use crate::cmd::ClackAudioHostCommand;
 use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent};
 use clack_host::events::Match::All;
 use clack_host::prelude::*;
+use clack_extensions::params::{ParamInfoBuffer, PluginParams};
 use clap::Parser;
 use jack::{contrib::ClosureProcessHandler, AudioOut, Client, Control};
 use linefeed::{Interface, ReadResult};
@@ -227,6 +228,23 @@ fn main() {
             ClackAudioHostCommand::ListFeatures => {
                 let features: Vec<String> = plugin_descriptor.features().map(|cstr| cstr.to_string_lossy().to_string()).collect();
                 println!("{}", features.join(", "));
+            }
+            ClackAudioHostCommand::ListParams => {
+                let mut plugin_handle = plugin_instance.plugin_handle();
+                let plugin_params = match plugin_handle.get_extension::<PluginParams>() {
+                    Some(p) => p,
+                    None => {
+                        println!("No plugin parameters found.");
+                        continue;
+                    }
+                };
+
+                for param_idx in 0..plugin_params.count(&mut plugin_handle) {
+                    let mut param_info_buffer = ParamInfoBuffer::new();
+                    let param = plugin_params.get_info(&mut plugin_handle, param_idx, &mut param_info_buffer).unwrap();
+                    let param_name = String::from_utf8(Vec::from(param.name)).unwrap_or("Unknown".to_string());
+                    println!("{:3}: {}", param.id, param_name);
+                }
             }
             ClackAudioHostCommand::Invalid => {
                 eprintln!("Invalid command. See 'help' for usage information.")
