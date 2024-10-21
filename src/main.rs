@@ -4,10 +4,10 @@ mod cmd;
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
 
+use clack_extensions::params::{ParamInfoBuffer, PluginParams};
 use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent};
 use clack_host::events::Match::All;
 use clack_host::prelude::*;
-use clack_extensions::params::{ParamInfo, ParamInfoBuffer, ParamInfoFlags, PluginParams};
 use clap::Parser;
 use jack::{contrib::ClosureProcessHandler, AudioOut, Client, Control};
 use linefeed::{Interface, ReadResult};
@@ -237,25 +237,40 @@ fn main() {
 
                 for param_idx in 0..plugin_params.count(&mut plugin_handle) {
                     let mut param_info_buffer = ParamInfoBuffer::new();
-                    if let Some(info) = plugin_params.get_info(&mut plugin_handle, param_idx, &mut param_info_buffer) {
+                    if let Some(info) = plugin_params.get_info(
+                        &mut plugin_handle,
+                        param_idx,
+                        &mut param_info_buffer,
+                    ) {
                         if info.id != param_id {
                             continue;
                         }
 
-                        println!("Name: {}", String::from_utf8(Vec::from(info.name)).unwrap_or("Unknown".to_string()));
+                        println!(
+                            "Name: {}",
+                            String::from_utf8(Vec::from(info.name))
+                                .unwrap_or("Unknown".to_string())
+                        );
 
-                        let module_name = String::from_utf8(Vec::from(info.module)).unwrap_or(String::new());
+                        let module_name =
+                            String::from_utf8(Vec::from(info.module)).unwrap_or(String::new());
                         if !module_name.is_empty() {
                             println!("Module: {module_name}");
                         }
 
-                        println!("Range: ({}, {}) [default: {}]", info.min_value, info.max_value, info.default_value);
+                        println!(
+                            "Range: ({}, {}) [default: {}]",
+                            info.min_value, info.max_value, info.default_value
+                        );
                         break;
                     }
                 }
-            },
+            }
             ClackAudioHostCommand::ListFeatures => {
-                let features: Vec<String> = plugin_descriptor.features().map(|cstr| cstr.to_string_lossy().to_string()).collect();
+                let features: Vec<String> = plugin_descriptor
+                    .features()
+                    .map(|cstr| cstr.to_string_lossy().to_string())
+                    .collect();
                 println!("{}", features.join(", "));
             }
             ClackAudioHostCommand::ListParams => {
@@ -270,8 +285,11 @@ fn main() {
 
                 for param_idx in 0..plugin_params.count(&mut plugin_handle) {
                     let mut param_info_buffer = ParamInfoBuffer::new();
-                    let param = plugin_params.get_info(&mut plugin_handle, param_idx, &mut param_info_buffer).unwrap();
-                    let param_name = String::from_utf8(Vec::from(param.name)).unwrap_or("Unknown".to_string());
+                    let param = plugin_params
+                        .get_info(&mut plugin_handle, param_idx, &mut param_info_buffer)
+                        .unwrap();
+                    let param_name =
+                        String::from_utf8(Vec::from(param.name)).unwrap_or("Unknown".to_string());
                     println!("{:3}: {}", param.id, param_name);
                 }
             }
