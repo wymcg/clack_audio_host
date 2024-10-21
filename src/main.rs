@@ -224,6 +224,10 @@ fn main() {
             ClackAudioHostCommand::StopNote(key) => input_events_buffer.lock().unwrap().push(
                 &NoteOffEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY),
             ),
+            ClackAudioHostCommand::ListFeatures => {
+                let features: Vec<String> = plugin_descriptor.features().map(|cstr| cstr.to_string_lossy().to_string()).collect();
+                println!("{}", features.join(", "));
+            }
             ClackAudioHostCommand::Invalid => {
                 eprintln!("Invalid command. See 'help' for usage information.")
             }
