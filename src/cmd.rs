@@ -20,7 +20,7 @@ impl ClackAudioHostCommand {
             "lsf" => Some(Self::ListFeatures),
             "lsp" => Some(Self::ListParams),
             "pi" => Some(Self::ParamInfo(tokens.get(1)?.parse::<u32>().ok()?)),
-            "sp" => Some(Self::SetParam(tokens.get(1)?.parse::<u32>().ok()?, tokens.get(2)?.parse::<f64>().ok()?)),
+            "ps" => Some(Self::SetParam(tokens.get(1)?.parse::<u32>().ok()?, tokens.get(2)?.parse::<f64>().ok()?)),
             _ => None,
         }
     }
@@ -39,5 +39,5 @@ pub fn print_help() {
     println!("pi <param_id>             - Show information about a specific parameter");
     println!("lsf                       - List plugin features");
     println!("lsp                       - List plugin parameters");
-    println!("sp <param_id> <new_value> - List plugin parameters");
+    println!("ps <param_id> <new_value> - Set a parameter");
 }

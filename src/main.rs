@@ -236,6 +236,7 @@ fn main() {
                     }
                 };
 
+
                 for param_idx in 0..plugin_params.count(&mut plugin_handle) {
                     let mut param_info_buffer = ParamInfoBuffer::new();
                     if let Some(info) = plugin_params.get_info(
@@ -258,6 +259,8 @@ fn main() {
                         if !module_name.is_empty() {
                             println!("Module: {module_name}");
                         }
+
+                        println!("Value: {:?}", plugin_params.get_value(&mut plugin_handle, ClapId::from(info.id)).unwrap());
 
                         println!(
                             "Range: ({}, {}) [default: {}]",
