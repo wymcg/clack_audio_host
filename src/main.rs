@@ -4,14 +4,15 @@ mod cmd;
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
 
-use clack_extensions::params::{ParamInfoBuffer, PluginParams};
-use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent};
+use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent, ParamValueEvent};
 use clack_host::events::Match::All;
 use clack_host::prelude::*;
+use clack_extensions::params::{ParamInfoBuffer, PluginParams};
 use clap::Parser;
 use jack::{contrib::ClosureProcessHandler, AudioOut, Client, Control};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
+use clack_host::utils::Cookie;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -293,6 +294,9 @@ fn main() {
                     println!("{:3}: {}", param.id, param_name);
                 }
             }
+            ClackAudioHostCommand::SetParam(param_id, value) => input_events_buffer.lock().unwrap().push(
+                &ParamValueEvent::new(0, ClapId::from(param_id), Pckn::new(0u16, 0u16, All, All), value, Cookie::empty())
+            ),
             ClackAudioHostCommand::Invalid => {
                 eprintln!("Invalid command. See 'help' for usage information.")
             }
