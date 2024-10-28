@@ -9,7 +9,7 @@ use clack_host::events::Match::All;
 use clack_host::prelude::*;
 use clack_extensions::params::{ParamInfoBuffer, PluginParams};
 use clap::Parser;
-use jack::{contrib::ClosureProcessHandler, AudioOut, Client, Control};
+use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
 use clack_host::utils::Cookie;
@@ -63,6 +63,8 @@ fn main() {
     let mut port_out_r = client
         .register_port("out_r", AudioOut::default())
         .expect("Unable to create right output port!");
+    let port_in_l = client.register_port("in_l", AudioIn::default()).expect("Unable to create left audio in port!");
+    let port_in_r = client.register_port("in_r", AudioIn::default()).expect("Unable to create right audio in port!");
     client
         .set_buffer_size(PLUGIN_CONFIG_MAX_FRAMES)
         .expect("Unable to set client buffer size!");
@@ -161,6 +163,10 @@ fn main() {
     // Create the process handler for the JACK client
     let process_handler = ClosureProcessHandler::new(move |_client, process_scope| -> Control {
         let mut output_events = OutputEvents::from_buffer(&mut output_events_buffer);
+
+        // Copy over input audio to the input audio buffers
+        input_audio_buffers[0].copy_from_slice(port_in_l.as_slice(process_scope));
+        input_audio_buffers[1].copy_from_slice(port_in_r.as_slice(process_scope));
 
         let input_audio = input_ports.with_input_buffers([AudioPortBuffer {
             latency: 0,
