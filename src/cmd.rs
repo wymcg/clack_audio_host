@@ -20,7 +20,10 @@ impl ClackAudioHostCommand {
             "lsf" => Some(Self::ListFeatures),
             "lsp" => Some(Self::ListParams),
             "pi" => Some(Self::ParamInfo(tokens.get(1)?.parse::<u32>().ok()?)),
-            "ps" => Some(Self::SetParam(tokens.get(1)?.parse::<u32>().ok()?, tokens.get(2)?.parse::<f64>().ok()?)),
+            "ps" => Some(Self::SetParam(
+                tokens.get(1)?.parse::<u32>().ok()?,
+                tokens.get(2)?.parse::<f64>().ok()?,
+            )),
             _ => None,
         }
     }

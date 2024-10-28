@@ -4,15 +4,15 @@ mod cmd;
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
 
+use clack_extensions::params::{ParamInfoBuffer, PluginParams};
 use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent, ParamValueEvent};
 use clack_host::events::Match::All;
 use clack_host::prelude::*;
-use clack_extensions::params::{ParamInfoBuffer, PluginParams};
+use clack_host::utils::Cookie;
 use clap::Parser;
 use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
-use clack_host::utils::Cookie;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -63,8 +63,12 @@ fn main() {
     let mut port_out_r = client
         .register_port("out_r", AudioOut::default())
         .expect("Unable to create right output port!");
-    let port_in_l = client.register_port("in_l", AudioIn::default()).expect("Unable to create left audio in port!");
-    let port_in_r = client.register_port("in_r", AudioIn::default()).expect("Unable to create right audio in port!");
+    let port_in_l = client
+        .register_port("in_l", AudioIn::default())
+        .expect("Unable to create left audio in port!");
+    let port_in_r = client
+        .register_port("in_r", AudioIn::default())
+        .expect("Unable to create right audio in port!");
     client
         .set_buffer_size(PLUGIN_CONFIG_MAX_FRAMES)
         .expect("Unable to set client buffer size!");
@@ -242,7 +246,6 @@ fn main() {
                     }
                 };
 
-
                 for param_idx in 0..plugin_params.count(&mut plugin_handle) {
                     let mut param_info_buffer = ParamInfoBuffer::new();
                     if let Some(info) = plugin_params.get_info(
@@ -266,7 +269,12 @@ fn main() {
                             println!("Module: {module_name}");
                         }
 
-                        println!("Value: {:?}", plugin_params.get_value(&mut plugin_handle, ClapId::from(info.id)).unwrap());
+                        println!(
+                            "Value: {:?}",
+                            plugin_params
+                                .get_value(&mut plugin_handle, ClapId::from(info.id))
+                                .unwrap()
+                        );
 
                         println!(
                             "Range: ({}, {}) [default: {}]",
@@ -303,9 +311,16 @@ fn main() {
                     println!("{:3}: {}", param.id, param_name);
                 }
             }
-            ClackAudioHostCommand::SetParam(param_id, value) => input_events_buffer.lock().unwrap().push(
-                &ParamValueEvent::new(0, ClapId::from(param_id), Pckn::new(0u16, 0u16, All, All), value, Cookie::empty())
-            ),
+            ClackAudioHostCommand::SetParam(param_id, value) => input_events_buffer
+                .lock()
+                .unwrap()
+                .push(&ParamValueEvent::new(
+                    0,
+                    ClapId::from(param_id),
+                    Pckn::new(0u16, 0u16, All, All),
+                    value,
+                    Cookie::empty(),
+                )),
             ClackAudioHostCommand::Invalid => {
                 eprintln!("Invalid command. See 'help' for usage information.")
             }
