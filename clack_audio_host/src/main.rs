@@ -10,7 +10,7 @@ use clack_host::events::Match::All;
 use clack_host::prelude::*;
 use clack_host::utils::Cookie;
 use clap::Parser;
-use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control};
+use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, MidiIn};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
 
@@ -69,6 +69,9 @@ fn main() {
     let port_in_r = client
         .register_port("in_r", AudioIn::default())
         .expect("Unable to create right audio in port!");
+    let midi_in = client
+        .register_port("midi_in", MidiIn::default())
+        .expect("Unable to create MIDI in port!");
     client
         .set_buffer_size(PLUGIN_CONFIG_MAX_FRAMES)
         .expect("Unable to set client buffer size!");

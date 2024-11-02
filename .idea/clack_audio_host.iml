@@ -2,7 +2,9 @@
 <module type="EMPTY_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/clack_audio_host/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/midi2jack/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/clack_audio_host/target" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
