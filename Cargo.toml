@@ -1,5 +1,14 @@
-[workspace]
-members = [
-    "clack_audio_host",
-    "midi2jack"
-]
+[package]
+name = "clack_audio_host"
+version = "0.1.0"
+edition = "2021"
+authors = ["Will McGloughlin"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = {version = "4.5.20", features = ["derive"]}
+clack-host = {git = "https://github.com/prokopyl/clack.git", rev = "5deaa1b"}
+clack-extensions = {git = "https://github.com/prokopyl/clack.git", rev = "5deaa1b", features = ["clack-host", "params"]}
+jack = "0.13.0"
+linefeed = "0.6.0"
