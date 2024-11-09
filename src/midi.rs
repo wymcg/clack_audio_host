@@ -35,7 +35,6 @@ pub fn add_raw_midi_to_event_buffer<'a>(
     event_buffer: &'a mut EventBuffer,
     raw_midi: RawMidi<'a>,
     port: u16,
-    note_id: u32,
 ) -> Result<(), &'a str> {
     let event_type: MidiEventType = MidiEventType::from((raw_midi.bytes[0] & 0xF0) >> 4);
     let midi_channel: u8 = raw_midi.bytes[0] & 0x0F;

@@ -4,16 +4,15 @@ mod midi;
 
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
-use std::ops::Deref;
 
 use crate::midi::add_raw_midi_to_event_buffer;
 use clack_extensions::params::{ParamInfoBuffer, PluginParams};
-use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent, ParamValueEvent};
+use clack_host::events::event_types::ParamValueEvent;
 use clack_host::events::Match::All;
 use clack_host::prelude::*;
 use clack_host::utils::Cookie;
 use clap::Parser;
-use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, MidiIn, RawMidi};
+use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, MidiIn};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
 
@@ -21,8 +20,6 @@ const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
 const HOST_URL: &str = "https://github.com/wymcg/clack_audio_host";
 const HOST_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-const NOTE_VELOCITY: f64 = 100.0;
 
 const PLUGIN_CONFIG_MIN_FRAMES: u32 = 1;
 const PLUGIN_CONFIG_MAX_FRAMES: u32 = 4096;
@@ -196,7 +193,7 @@ fn main() {
         {
             let mut event_buffer = thread_input_events_buffer.lock().unwrap();
             for raw_midi in midi_in.iter(process_scope) {
-                if let Err(e) = add_raw_midi_to_event_buffer(&mut *event_buffer, raw_midi, 1, 0) {
+                if let Err(e) = add_raw_midi_to_event_buffer(&mut *event_buffer, raw_midi, 0) {
                     eprintln!("Unable to handle MIDI event: {e}");
                 }
             }
