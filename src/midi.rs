@@ -1,8 +1,6 @@
-use std::io::ErrorKind::Unsupported;
 use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent};
-use clack_host::events::{Event, Pckn, UnknownEvent};
+use clack_host::events::Pckn;
 use clack_host::events::Match::All;
-use clack_host::events::spaces::CoreEventSpace;
 use clack_host::prelude::EventBuffer;
 use jack::RawMidi;
 

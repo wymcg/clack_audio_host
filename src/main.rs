@@ -245,12 +245,6 @@ fn main() {
             ClackAudioHostCommand::Help => {
                 cmd::print_help();
             }
-            ClackAudioHostCommand::StartNote(key) => input_events_buffer.lock().unwrap().push(
-                &NoteOnEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY),
-            ),
-            ClackAudioHostCommand::StopNote(key) => input_events_buffer.lock().unwrap().push(
-                &NoteOffEvent::new(0, Pckn::new(0u16, 0u16, key, All), NOTE_VELOCITY),
-            ),
             ClackAudioHostCommand::ParamInfo(param_id) => {
                 let mut plugin_handle = plugin_instance.plugin_handle();
                 let plugin_params = match plugin_handle.get_extension::<PluginParams>() {
