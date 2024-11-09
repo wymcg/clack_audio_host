@@ -1,6 +1,8 @@
 mod args;
 mod cmd;
+mod midi;
 
+use std::ops::Deref;
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
 
@@ -10,9 +12,10 @@ use clack_host::events::Match::All;
 use clack_host::prelude::*;
 use clack_host::utils::Cookie;
 use clap::Parser;
-use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control};
+use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, MidiIn, RawMidi};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
+use crate::midi::add_raw_midi_to_event_buffer;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -69,6 +72,9 @@ fn main() {
     let port_in_r = client
         .register_port("in_r", AudioIn::default())
         .expect("Unable to create right audio in port!");
+    let midi_in = client
+        .register_port("midi_in", MidiIn::default())
+        .expect("Unable to create MIDI in port!");
     client
         .set_buffer_size(PLUGIN_CONFIG_MAX_FRAMES)
         .expect("Unable to set client buffer size!");
@@ -186,6 +192,15 @@ fn main() {
                 output_audio_buffers.iter_mut().map(|b| b.as_mut_slice()),
             ),
         }]);
+
+        {
+            let mut event_buffer = thread_input_events_buffer.lock().unwrap();
+            for raw_midi in midi_in.iter(process_scope) {
+                if let Err(e) = add_raw_midi_to_event_buffer(&mut *event_buffer, raw_midi, 1, 0) {
+                    eprintln!("Unable to handle MIDI event: {e}");
+                }
+            }
+        }
 
         if let Err(_e) = audio_processor.process(
             &input_audio,
