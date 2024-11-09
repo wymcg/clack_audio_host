@@ -2,10 +2,11 @@ mod args;
 mod cmd;
 mod midi;
 
-use std::ops::Deref;
 use crate::args::ClackAudioHostArgs;
 use crate::cmd::ClackAudioHostCommand;
+use std::ops::Deref;
 
+use crate::midi::add_raw_midi_to_event_buffer;
 use clack_extensions::params::{ParamInfoBuffer, PluginParams};
 use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent, ParamValueEvent};
 use clack_host::events::Match::All;
@@ -15,7 +16,6 @@ use clap::Parser;
 use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, MidiIn, RawMidi};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
-use crate::midi::add_raw_midi_to_event_buffer;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
