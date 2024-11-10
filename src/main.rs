@@ -22,7 +22,7 @@ const HOST_URL: &str = "https://github.com/wymcg/clack_audio_host";
 const HOST_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const PLUGIN_CONFIG_MIN_FRAMES: u32 = 1;
-const PLUGIN_CONFIG_MAX_FRAMES: u32 = 4096;
+const PLUGIN_CONFIG_MAX_FRAMES: u32 = 128;
 
 struct ClackAudioHostShared;
 
