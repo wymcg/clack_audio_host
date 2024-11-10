@@ -78,7 +78,7 @@ fn main() {
     let args = ClackAudioHostArgs::parse();
 
     // Set up the JACK client
-    let (client, _status) = Client::new("clack_audio_host", jack::ClientOptions::NO_START_SERVER)
+    let (client, _status) = Client::new(HOST_NAME, jack::ClientOptions::NO_START_SERVER)
         .expect("Unable to create JACK client!");
     let mut port_out_l = client
         .register_port(PLUGIN_AUDIO_OUT_L_PORT, AudioOut::default())
