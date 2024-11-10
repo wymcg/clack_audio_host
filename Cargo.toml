@@ -12,3 +12,4 @@ clack-host = {git = "https://github.com/prokopyl/clack.git", rev = "5deaa1b"}
 clack-extensions = {git = "https://github.com/prokopyl/clack.git", rev = "5deaa1b", features = ["clack-host", "params"]}
 jack = "0.13.0"
 linefeed = "0.6.0"
+const_format = "0.2.33"
