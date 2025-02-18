@@ -15,6 +15,7 @@ use clap::Parser;
 use jack::{contrib::ClosureProcessHandler, AudioIn, AudioOut, Client, Control, MidiIn};
 use linefeed::{Interface, ReadResult};
 use std::sync::{Arc, Mutex};
+use const_format::formatcp;
 
 const HOST_NAME: &str = env!("CARGO_PKG_NAME");
 const HOST_VENDOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -23,6 +24,28 @@ const HOST_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const PLUGIN_CONFIG_MIN_FRAMES: u32 = 1;
 const PLUGIN_CONFIG_MAX_FRAMES: u32 = 128;
+
+const PLUGIN_AUDIO_OUT_L_PORT: &str = "out_l";
+const PLUGIN_AUDIO_OUT_R_PORT: &str = "out_r";
+const PLUGIN_AUDIO_IN_L_PORT: &str = "in_l";
+const PLUGIN_AUDIO_IN_R_PORT: &str = "in_r";
+const PLUGIN_MIDI_IN_PORT: &str = "midi_in";
+
+const PLUGIN_AUDIO_OUT_L_PORT_NAME: &str = formatcp!("{HOST_NAME}:{PLUGIN_AUDIO_OUT_L_PORT}");
+const PLUGIN_AUDIO_OUT_R_PORT_NAME: &str = formatcp!("{HOST_NAME}:{PLUGIN_AUDIO_OUT_R_PORT}");
+const PLUGIN_AUDIO_IN_L_PORT_NAME: &str = formatcp!("{HOST_NAME}:{PLUGIN_AUDIO_IN_L_PORT}");
+const PLUGIN_AUDIO_IN_R_PORT_NAME: &str = formatcp!("{HOST_NAME}:{PLUGIN_AUDIO_IN_R_PORT}");
+const PLUGIN_MIDI_IN_PORT_NAME: &str = formatcp!("{HOST_NAME}:{PLUGIN_MIDI_IN_PORT}");
+
+const SYSTEM_AUDIO_CLIENT_NAME: &str = "system";
+const SYSTEM_MIDI_CLIENT_NAME: &str = "system_midi";
+
+const SYSTEM_AUDIO_CAPTURE_L_PORT_NAME: &str = formatcp!("{SYSTEM_AUDIO_CLIENT_NAME}:capture_1");
+const SYSTEM_AUDIO_CAPTURE_R_PORT_NAME: &str = formatcp!("{SYSTEM_AUDIO_CLIENT_NAME}:capture_2");
+const SYSTEM_MIDI_CAPTURE_PORT_NAME: &str = formatcp!("{SYSTEM_MIDI_CLIENT_NAME}:capture_1");
+const SYSTEM_AUDIO_PLAYBACK_L_PORT_NAME: &str = formatcp!("{SYSTEM_AUDIO_CLIENT_NAME}:playback_1");
+const SYSTEM_AUDIO_PLAYBACK_R_PORT_NAME: &str = formatcp!("{SYSTEM_AUDIO_CLIENT_NAME}:playback_2");
+const SYSTEM_MIDI_PLAYBACK_PORT_NAME: &str = formatcp!("{SYSTEM_MIDI_CLIENT_NAME}:playback_1");
 
 struct ClackAudioHostShared;
 
@@ -55,22 +78,22 @@ fn main() {
     let args = ClackAudioHostArgs::parse();
 
     // Set up the JACK client
-    let (client, _status) = Client::new("clack_audio_host", jack::ClientOptions::NO_START_SERVER)
+    let (client, _status) = Client::new(HOST_NAME, jack::ClientOptions::NO_START_SERVER)
         .expect("Unable to create JACK client!");
     let mut port_out_l = client
-        .register_port("out_l", AudioOut::default())
+        .register_port(PLUGIN_AUDIO_OUT_L_PORT, AudioOut::default())
         .expect("Unable to create left output port!");
     let mut port_out_r = client
-        .register_port("out_r", AudioOut::default())
+        .register_port(PLUGIN_AUDIO_OUT_R_PORT, AudioOut::default())
         .expect("Unable to create right output port!");
     let port_in_l = client
-        .register_port("in_l", AudioIn::default())
+        .register_port(PLUGIN_AUDIO_IN_L_PORT, AudioIn::default())
         .expect("Unable to create left audio in port!");
     let port_in_r = client
-        .register_port("in_r", AudioIn::default())
+        .register_port(PLUGIN_AUDIO_IN_R_PORT, AudioIn::default())
         .expect("Unable to create right audio in port!");
     let midi_in = client
-        .register_port("midi_in", MidiIn::default())
+        .register_port(PLUGIN_MIDI_IN_PORT, MidiIn::default())
         .expect("Unable to create MIDI in port!");
     client
         .set_buffer_size(PLUGIN_CONFIG_MAX_FRAMES)
@@ -226,9 +249,43 @@ fn main() {
     });
 
     // Start the JACK client
-    let _active_client = client
+    let active_client = client
         .activate_async((), process_handler)
         .expect("Unable to activate client");
+
+    // Attempt to connect to system I/O, if requested
+    if args.use_system_io {
+        if let Err(e) = active_client.as_client().connect_ports_by_name(SYSTEM_AUDIO_CAPTURE_L_PORT_NAME, PLUGIN_AUDIO_IN_L_PORT_NAME) {
+            eprintln!("Unable to connect to system audio capture (left).");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
+        }
+        if let Err(e) = active_client.as_client().connect_ports_by_name(SYSTEM_AUDIO_CAPTURE_R_PORT_NAME, PLUGIN_AUDIO_IN_R_PORT_NAME) {
+            eprintln!("Unable to connect to system audio capture (right).");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
+        }
+        if let Err(e) = active_client.as_client().connect_ports_by_name(PLUGIN_AUDIO_OUT_L_PORT_NAME, SYSTEM_AUDIO_PLAYBACK_L_PORT_NAME) {
+            eprintln!("Unable to connect to system audio playback (left).");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
+        }
+        if let Err(e) = active_client.as_client().connect_ports_by_name(PLUGIN_AUDIO_OUT_R_PORT_NAME, SYSTEM_AUDIO_PLAYBACK_R_PORT_NAME) {
+            eprintln!("Unable to connect to system audio playback (right).");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
+        }
+        if let Err(e) = active_client.as_client().connect_ports_by_name(SYSTEM_MIDI_CAPTURE_PORT_NAME, PLUGIN_MIDI_IN_PORT_NAME) {
+            eprintln!("Unable to connect to system MIDI capture.");
+            if args.verbose {
+                eprintln!("Error: {e}");
+            }
+        }
+    }
 
     // Set up the REPL interface
     let interface = Interface::new(HOST_NAME).expect("Unable to create interface!");
